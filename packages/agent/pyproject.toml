@@ -1,0 +1,23 @@
+[project]
+name = "workshop-agent"
+version = "0.1.0"
+description = "HuggingCar agent for the workshop PC: fiscal printing and other local duties"
+requires-python = ">=3.14"
+license = "MIT"
+dependencies = [
+    "posnet",
+]
+
+[project.scripts]
+workshop-agent = "workshop_agent.__main__:main"
+
+[tool.uv.sources]
+posnet = { workspace = true }
+
+[build-system]
+requires = ["uv_build>=0.11,<0.12"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = ""
+module-name = "workshop_agent"

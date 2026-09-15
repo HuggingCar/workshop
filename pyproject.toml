@@ -1,0 +1,62 @@
+[project]
+name = "workshop"
+version = "0.1.0"
+description = "HuggingCar software for the workshop PC: Posnet driver, fiscal desktop app, local agent"
+requires-python = ">=3.14"
+license = "MIT"
+dependencies = [
+    "fiscal-desktop",
+    "posnet",
+    "workshop-agent",
+]
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv.sources]
+fiscal-desktop = { workspace = true }
+posnet = { workspace = true }
+workshop-agent = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1",
+    "ruff>=0.16",
+]
+
+[tool.pytest.ini_options]
+cache_dir = ".venv/.tmp/pytest"
+testpaths = ["packages/posnet/tests", "packages/desktop/tests", "packages/agent/tests"]
+
+[tool.ruff]
+cache-dir = ".venv/.tmp/ruff"
+line-length = 100
+required-version = ">=0.16"
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "ANN",     # Missing type annotations
+    "D",       # Missing docstrings
+    "COM812",  # Trailing comma missing
+    "CPY001",  # Missing copyright notice
+    "ARG001",  # Unused function argument (Qt slots)
+    "ARG002",  # Unused method argument (Qt overrides)
+    "PLC0415", # `import` should be at the top-level of a file
+    "E501",    # Line too long
+    "TRY003",  # Avoid specifying long messages outside the exception class
+    "EM101",   # Exception must not use a string literal
+    "EM102",   # Exception must not use an f-string literal
+    "RUF001",  # Ambiguous unicode character (Polish text)
+    "N802",    # Function name should be lowercase (Qt method overrides)
+    "FBT001",  # Boolean-typed positional argument (Qt flags)
+    "FBT002",  # Boolean default positional argument (Qt flags)
+    "FBT003",  # Boolean positional value in call (Qt flags)
+    "S310",    # urlopen scheme is validated by the agent's main()
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**/*.py" = ["ARG005", "INP001", "PLR2004", "PLW1510", "PT011", "PT018", "S101", "S603", "SLF001"]
+"**/__main__.py" = ["T201"]
+"packages/posnet/posnet/simulator.py" = ["C901", "DTZ005", "PERF401", "PLR0911", "PLR0912", "PLR2004", "PLW2901", "PTH", "TRY301"]  # test double, not product code

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4096ff"/>
+      <stop offset="1" stop-color="#0958d9"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
+  <!-- paper feeding in from the top -->
+  <path d="M21 22V11h22v11" fill="#e6f4ff"/>
+  <!-- printer body -->
+  <rect x="11" y="22" width="42" height="20" rx="4" fill="#fff"/>
+  <rect x="11" y="36" width="42" height="6" fill="#d6e4ff"/>
+  <circle cx="46" cy="29" r="2.4" fill="#52c41a"/>
+  <!-- receipt with a torn edge -->
+  <path d="M19 38h26v14l-2.6-2.4-2.6 2.4-2.6-2.4-2.6 2.4-2.6-2.4-2.6 2.4-2.6-2.4-2.6 2.4-2.6-2.4L19 52z" fill="#fff"/>
+  <g stroke="#8c8c8c" stroke-width="1.8" stroke-linecap="round">
+    <path d="M23 42.5h14M23 46.5h9"/>
+  </g>
+  <path d="M35 46.5h6" stroke="#1677ff" stroke-width="2.2" stroke-linecap="round"/>
+</svg>
