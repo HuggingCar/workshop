@@ -30,7 +30,7 @@ wheels = [
 
 [[package]]
 name = "fiscal-desktop"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "packages/desktop" }
 dependencies = [
     { name = "posnet" },
@@ -157,7 +157,7 @@ wheels = [
 
 [[package]]
 name = "posnet"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "packages/posnet" }
 dependencies = [
     { name = "pyserial" },
@@ -345,7 +345,7 @@ wheels = [
 
 [[package]]
 name = "workshop"
-version = "0.1.0"
+version = "0.1.1"
 source = { virtual = "." }
 dependencies = [
     { name = "fiscal-desktop" },
@@ -374,7 +374,7 @@ dev = [
 
 [[package]]
 name = "workshop-agent"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "packages/agent" }
 dependencies = [
     { name = "posnet" },
