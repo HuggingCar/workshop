@@ -17,6 +17,7 @@ posnet = { workspace = true }
 
 [dependency-groups]
 build = [
+    "pillow>=11,<13",  # PyInstaller converts icon.png to .icns / .ico with it
     "pyinstaller>=6.22,<7",
 ]
 
