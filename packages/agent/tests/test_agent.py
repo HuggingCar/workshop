@@ -227,6 +227,7 @@ def test_credentials_are_remembered_owner_only_and_missing_ones_stop_the_agent(
         monkeypatch.setattr(Agent, "run_forever", lambda _self: None)
         assert main(printer, config, "https://server", "secret") == 0
         assert json.loads(config.read_text()) == {"api_url": "https://server", "token": "secret"}
-        assert config.stat().st_mode & 0o777 == 0o600
+        if os.name != "nt":  # Windows has no POSIX mode bits
+            assert config.stat().st_mode & 0o777 == 0o600
         assert main(printer, config, None, None) == 0  # later runs need only --serial
         assert main(printer, config, "ftp://server", "secret") == 2
