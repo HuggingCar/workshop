@@ -26,7 +26,9 @@ mkdir -p build release
 uv sync --locked --group build
 icon=()
 if [[ $os != linux ]]; then  # PyInstaller ignores --icon on Linux; the .deb ships the SVG
-  icon=(--icon build/icon.png)  # PyInstaller + Pillow turn it into a multi-size .ico / .icns
+  # Absolute: --icon resolves against --specpath, not cwd. `pwd -W` is Git Bash's native
+  # Windows path (argument conversion is disabled below); elsewhere it fails and plain pwd wins.
+  icon=(--icon "$(pwd -W 2>/dev/null || pwd)/build/icon.png")
   # A missing or broken SVG yields a null pixmap, which refuses to save.
   QT_QPA_PLATFORM=offscreen uv run python -c "
 from PySide6.QtGui import QGuiApplication, QIcon
