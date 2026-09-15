@@ -115,6 +115,7 @@ def test_failure_mid_receipt_is_reported_unknown_and_blocks(tmp_path, monkeypatc
         assert sim.receipts == []
 
 
+@pytest.mark.skipif(os.name == "nt", reason="os.kill(SIGTERM) terminates the process on Windows")
 def test_malformed_server_replies_do_not_kill_the_loop_and_sigterm_stops_it(tmp_path, monkeypatch):
     with Simulator() as sim:
         # Stop the moment the queue is drained: what systemd would do at the end of a day.
