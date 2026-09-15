@@ -1,0 +1,56 @@
+[project]
+name = "workshop"
+version = "0.1.0"
+description = "HuggingCar software for the workshop PC: Posnet driver, fiscal desktop app, local agent"
+requires-python = ">=3.14"
+license = "MIT"
+dependencies = [
+    "fiscal-desktop",
+    "posnet",
+    "workshop-agent",
+]
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv.sources]
+fiscal-desktop = { workspace = true }
+posnet = { workspace = true }
+workshop-agent = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1",
+    "ruff>=0.16",
+]
+
+[tool.pytest.ini_options]
+cache_dir = ".venv/.tmp/pytest"
+testpaths = ["packages/posnet/tests", "packages/desktop/tests", "packages/agent/tests"]
+
+[tool.ruff]
+cache-dir = ".venv/.tmp/ruff"
+line-length = 100
+required-version = ">=0.16"
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "ANN",     # Annotations only where they carry information, not on every Qt callback
+    "D",       # Docstrings only where the code is not self-explanatory
+    "COM812",  # Trailing comma missing — conflicts with `ruff format`
+    "CPY001",  # Missing copyright notice — the repo ships one LICENSE
+    # These three would only move user-facing Polish text away from the check that raises it.
+    "TRY003",  # Long message outside the exception class
+    "EM101",   # Exception must not use a string literal
+    "EM102",   # Exception must not use an f-string literal
+    "FBT003",  # Boolean positional value in call — Qt API, e.g. blockSignals(True)
+]
+allowed-confusables = ["–"]  # en dash belongs in Polish UI text
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**/*.py" = ["ARG005", "INP001", "PLC0415", "PLR2004", "PT011", "PT018", "S101", "SLF001"]
+"**/__main__.py" = ["PLC0415", "T201"]  # Qt is imported lazily so --probe runs headless
+# One flat dispatch chain mirroring the device command set; a test double, not product code.
+"packages/posnet/posnet/simulator.py" = ["C901", "PLR0911", "PLR0912"]

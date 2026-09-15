@@ -1,0 +1,16 @@
+[project]
+name = "posnet"
+version = "0.1.0"
+description = "Driver for Posnet Temo Online fiscal printers over the Posnet protocol"
+requires-python = ">=3.14"
+license = "MIT"
+dependencies = [
+    "pyserial>=3.5,<4",
+]
+
+[build-system]
+requires = ["uv_build>=0.11,<0.12"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = ""

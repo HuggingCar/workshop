@@ -1,0 +1,16 @@
+*                                       text=auto
+*.*ignore               text
+
+*.lock                  text            -diff
+*.md                    text            diff=markdown
+*.py                    text            diff=python
+*.qss                   text
+*.sh                    text            eol=lf
+*.svg                   text
+*.toml                  text
+*.yml                   text
+
+.gitattributes          text
+.python-version         text
+
+LICENSE                 text
