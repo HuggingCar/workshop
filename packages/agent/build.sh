@@ -26,7 +26,7 @@ printf 'import sys\nfrom workshop_agent.__main__ import main\nsys.exit(main())\n
 MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' \
 uv run --no-sync pyinstaller --noconfirm --clean "${mode[@]}" \
   --name huggingcar-agent --specpath build --copy-metadata workshop-agent \
-  --collect-data anyascii --collect-data fiscal_desktop build/launcher.py
+  --collect-data anyascii --collect-data fiscal_desktop --collect-data workshop_agent build/launcher.py
 
 exe=dist/huggingcar-agent
 [[ $os == win ]] && exe+=.exe

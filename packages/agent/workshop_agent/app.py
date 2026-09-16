@@ -9,6 +9,7 @@ from fiscal_desktop.app import label, set_state
 from posnet.printer import Printer
 from posnet.protocol import Connection
 from PySide6.QtCore import QThread, Signal
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -16,7 +17,9 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLineEdit,
+    QMenu,
     QPushButton,
+    QSystemTrayIcon,
     QVBoxLayout,
     QWidget,
 )
@@ -83,9 +86,10 @@ class AgentWindow(QWidget):
         self.data = data
         self.worker = None
         self.closing = False
-        self.setWindowTitle("HuggingCar Agent")
+        self.setWindowTitle("Drukarka fiskalna")
         self.setMinimumWidth(620)
         self.setObjectName("root")
+        self.setWindowIcon(QIcon(str(Path(__file__).with_name("icon.svg"))))
         theme = Path(fiscal_desktop.__file__).with_name("theme.qss")
         self.setStyleSheet(
             theme.read_text(encoding="utf-8").replace("{dir}", theme.parent.as_posix())
@@ -100,8 +104,6 @@ class AgentWindow(QWidget):
         layout = QVBoxLayout(card)
         layout.setContentsMargins(24, 20, 24, 24)
         layout.setSpacing(16)
-        layout.addWidget(label("HuggingCar Agent", "cardTitle"))
-        layout.addWidget(label("Połącz drukarkę fiskalną z HuggingCar.", "secondary"))
         self._build_form(config)
         layout.addWidget(self.form)
         buttons = QHBoxLayout()
@@ -113,17 +115,45 @@ class AgentWindow(QWidget):
         self.save_button.clicked.connect(self.save)
         self.start_button.clicked.connect(self.start)
         self.stop_button.clicked.connect(self.stop)
+        self.quit_button = QPushButton("Zakończ")
+        self.quit_button.clicked.connect(self.quit)
         for button in (self.save_button, self.start_button, self.stop_button):
             buttons.addWidget(button)
+        buttons.addWidget(self.quit_button)
         layout.addLayout(buttons)
-        self.status = label("Zatrzymano. Uzupełnij ustawienia i kliknij Uruchom.", "message")
+        self.status = label("", "message")
         self.status.setWordWrap(True)
         layout.addWidget(self.status)
-        note = label(
-            "Uruchom pobiera i drukuje oczekujące paragony. Pozostaw okno otwarte.", "muted"
-        )
-        note.setWordWrap(True)
-        root.addWidget(note)
+        self.tray = QSystemTrayIcon(self.windowIcon(), self)
+        self.tray.setToolTip("HuggingCar Agent")
+        menu = QMenu(self)
+        menu.addAction("Otwórz", self.open_window)
+        menu.addSeparator()
+        menu.addAction("Zakończ", self.quit)
+        self.tray.setContextMenu(menu)
+        self.tray.activated.connect(self.tray_activated)
+        self.tray.show()
+
+    def open_window(self):
+        self.showNormal()
+        self.raise_()
+        self.activateWindow()
+
+    def tray_activated(self, reason):
+        if reason in (
+            QSystemTrayIcon.ActivationReason.Trigger,
+            QSystemTrayIcon.ActivationReason.DoubleClick,
+        ):
+            self.open_window()
+
+    def quit(self):
+        self.closing = True
+        if self.worker is not None:
+            self.stop()
+        else:
+            self.tray.hide()
+            self.close()
+            QApplication.instance().quit()
 
     def _build_form(self, config):
         self.form = QWidget()
@@ -202,19 +232,25 @@ class AgentWindow(QWidget):
         self.worker.deleteLater()
         self.worker = None
         if self.closing:
-            self.close()
+            self.quit()
 
     def closeEvent(self, event):  # noqa: N802 — Qt API
-        if self.worker is not None:
-            self.closing = True
-            self.stop()
-            event.ignore()
-        else:
+        if self.closing and self.worker is None:
             event.accept()
+            return
+        event.ignore()
+        if QSystemTrayIcon.isSystemTrayAvailable():
+            self.hide()
+        else:
+            self.show_status(
+                "Zasobnik systemowy jest niedostępny. Aby zakończyć aplikację, kliknij Zakończ.",
+                "error",
+            )
 
 
 def run(data: Path) -> int:
     app = QApplication(sys.argv[:1])
+    app.setQuitOnLastWindowClosed(False)
     app.setStyle("Fusion")
     app.setApplicationName("HuggingCar Agent")
     app.setOrganizationName("HuggingCar")

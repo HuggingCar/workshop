@@ -2,16 +2,22 @@ import json
 import threading
 import time
 
+import pytest
+
 from posnet.simulator import Simulator
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QLineEdit
+from PySide6.QtWidgets import QApplication, QLineEdit, QSystemTrayIcon
 from test_api import server, session
 from workshop_agent.app import AgentWindow
 
 
-def test_saved_setup_and_close_waits_for_in_flight_receipt(tmp_path, monkeypatch):
+@pytest.mark.parametrize("tray_available", [True, False])
+def test_saved_setup_close_keeps_running_and_quit_finishes_receipt(
+    tmp_path, monkeypatch, tray_available
+):
     app = QApplication.instance() or QApplication([])
+    monkeypatch.setattr(QSystemTrayIcon, "isSystemTrayAvailable", lambda: tray_available)
     printing = threading.Event()
     finish = threading.Event()
     job = {
@@ -41,6 +47,7 @@ def test_saved_setup_and_close_waits_for_in_flight_receipt(tmp_path, monkeypatch
         assert requests == []  # saving configuration never starts printing
         assert window.token.echoMode() == QLineEdit.EchoMode.Password
         window.close()
+        window.deleteLater()
         window = AgentWindow(tmp_path)
         window.show()
         assert window.api_url.text() == url
@@ -55,7 +62,17 @@ def test_saved_setup_and_close_waits_for_in_flight_receipt(tmp_path, monkeypatch
             assert printing.is_set(), (window.status.text(), requests)
             window.close()
             app.processEvents()
-            assert window.isVisible()  # closing must not kill the thread mid-receipt
+            assert window.isVisible() is not tray_available
+            assert not window.worker.isInterruptionRequested()
+            if tray_available:
+                window.tray.contextMenu().actions()[0].trigger()
+                assert window.isVisible()
+                window.close()
+                window.tray.contextMenu().actions()[-1].trigger()
+            else:
+                QTest.mouseClick(window.quit_button, Qt.MouseButton.LeftButton)
+            assert window.worker.isRunning()  # quit must finish and report the receipt first
+            assert window.worker.isInterruptionRequested()
         finally:
             finish.set()
             window.stop()
@@ -64,6 +81,7 @@ def test_saved_setup_and_close_waits_for_in_flight_receipt(tmp_path, monkeypatch
                 app.processEvents()
                 time.sleep(0.01)
         assert window.worker is None
+        window.close()
         assert not window.isVisible()
         assert len(sim.receipts) == 1
         assert requests[-1][2]["status"] == 3
