@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 from unicodedata import normalize
 
+from anyascii import anyascii
+
 MAX_CENTS = 9_999_999_999
 MAX_NAME_LENGTH = 80
 VAT_COUNT = 7
@@ -23,14 +25,31 @@ def printable(value: str) -> None:
         raise ValueError("Drukarka nie obsługuje niektórych znaków w tekście.") from exc
 
 
+def sanitize(value: str, max_length: int) -> str:
+    """Coerce raw user text into something a CP1250 device can print.
+
+    Characters the printer cannot encode are transliterated, invisible and
+    control characters (tabs separate protocol fields) are dropped, and the
+    result is trimmed to `max_length`.
+    """
+    chars = []
+    for char in normalize("NFC", value):
+        if not char.isprintable():
+            chars.append(" " if char.isspace() else "")
+            continue
+        try:
+            char.encode("cp1250")
+        except UnicodeEncodeError:
+            chars.append(anyascii(char))
+        else:
+            chars.append(char)
+    return "".join(chars).strip()[:max_length]
+
+
 def validate_name(value: str) -> str:
-    value = normalize("NFC", value)
-    printable(value)
-    if not value.isprintable():
-        raise ValueError("Nazwa usługi nie może zawierać niewidocznych znaków.")
-    value = value.strip()
-    if not 1 <= len(value) <= MAX_NAME_LENGTH:
-        raise ValueError("Nazwa usługi musi mieć od 1 do 80 znaków.")
+    value = sanitize(value, MAX_NAME_LENGTH)
+    if not value:
+        raise ValueError("Nazwa usługi nie może być pusta.")
     return value
 
 

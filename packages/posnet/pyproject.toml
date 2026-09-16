@@ -1,10 +1,11 @@
 [project]
 name = "posnet"
-version = "0.1.1"
+version = "0.1.2"
 description = "Driver for Posnet Temo Online fiscal printers over the Posnet protocol"
 requires-python = ">=3.14"
 license = "MIT"
 dependencies = [
+    "anyascii>=0.3.3,<0.4",
     "pyserial>=3.5,<4",
 ]
 

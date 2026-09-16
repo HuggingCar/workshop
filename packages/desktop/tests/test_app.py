@@ -293,7 +293,7 @@ def test_saved_services_survive_a_cold_read_from_disk(tmp_path, monkeypatch, sto
 def test_invalid_name_edit_keeps_previous_value(editor, target):
     from fiscal_desktop.app import ConnectionDialog
 
-    name = "Olej\t5W30"  # the full rule set is covered by posnet's Line tests
+    name = " \t "  # sanitization cannot turn a blank name into a printable item
     app, window, service, _ = editor
     dialog = ConnectionDialog(service.connection, window) if target == "settings" else None
     view = dialog.list if dialog else window.table
@@ -322,7 +322,7 @@ def test_settings_cannot_accept_invalid_saved_name(editor):
     dialog = ConnectionDialog(service.connection, window)
     dialog.show()
     dialog.findChild(QTabWidget).setCurrentIndex(1)
-    dialog.list.item(0).setText("Olej\n")
+    dialog.list.item(0).setText(" \n")
     dialog.accept()
     assert dialog.result() != QDialog.DialogCode.Accepted
     assert dialog.name_error.isVisible()
@@ -335,7 +335,7 @@ def test_settings_cannot_accept_invalid_saved_name(editor):
 def test_invalid_unpriced_name_blocks_receipt(editor):
     _, window, _, _ = editor
     window.table.item(0, 2).setText("10")
-    window.table.item(1, 0).setText("Olej\n")
+    window.table.item(1, 0).setText(" \n")
     assert not window.print_button.isEnabled()
     with pytest.raises(ValueError):
         window.receipt_lines()
@@ -349,7 +349,7 @@ def test_name_edit_is_rejected_on_focus_loss(editor):
     app.processEvents()
     field = QApplication.focusWidget()
     assert isinstance(field, QLineEdit)
-    field.setText("Olej\t5W30")
+    field.setText(" \t ")
     window.search.setFocus()
     app.processEvents()
     assert item.text() == original

@@ -1,6 +1,7 @@
 name: Release
 
 on:
+  workflow_dispatch:
   push:
     branches: [master]
     paths-ignore:
@@ -43,12 +44,12 @@ jobs:
 
   test:
     needs: version
-    if: needs.version.outputs.new == 'true'
+    if: needs.version.outputs.new == 'true' || github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/checks.yml
 
   build:
     needs: [version, test]
-    if: needs.version.outputs.new == 'true'
+    if: needs.version.outputs.new == 'true' || github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false
       matrix:
@@ -77,15 +78,21 @@ jobs:
           sudo apt-get install -y -qq ./packages/desktop/release/*.deb
           # No printer on the runner: the app must reach its "not detected" state and stay alive.
           QT_QPA_PLATFORM=offscreen timeout 10 huggingcar-fiscal && exit 1 || [ $? -eq 124 ]
+      - name: Build and smoke-test the standalone agent
+        run: bash packages/agent/build.sh
+        shell: bash
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.name }}
-          path: packages/desktop/release/*
+          path: |
+            packages/desktop/release/*
+            packages/agent/release/*
           if-no-files-found: error
           retention-days: 7
 
   publish:
     needs: [version, build]
+    if: github.event_name == 'push' && needs.version.outputs.new == 'true'
     runs-on: ubuntu-slim
     permissions:
       contents: write

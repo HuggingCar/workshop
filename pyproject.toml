@@ -1,6 +1,6 @@
 [project]
 name = "workshop"
-version = "0.1.1"
+version = "0.1.2"
 description = "HuggingCar software for the workshop PC: Posnet driver, fiscal desktop app, local agent"
 requires-python = ">=3.14"
 license = "MIT"
