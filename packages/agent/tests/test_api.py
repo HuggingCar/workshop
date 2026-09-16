@@ -40,7 +40,7 @@ def server(replies):
 
 
 def session(token):
-    return (200, {"access_token": token, "expires_in": 900, "token_type": "Bearer"}, {})
+    return (200, {"access_token": token, "expires_in": 900}, {})
 
 
 def test_session_reuse_renewal_and_bounded_result(monkeypatch):

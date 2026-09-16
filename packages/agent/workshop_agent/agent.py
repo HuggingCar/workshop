@@ -105,14 +105,13 @@ class Api:
         with self.opener.open(request, timeout=30) as response:
             if response.status == HTTPStatus.NO_CONTENT:
                 return None
-            return json.loads(response.read() or b"null")
+            return json.load(response)
 
     def connect(self):
         started = time.monotonic()
         session = self._send("POST", "session/", f"Agent {self.token}")
         if (
             not isinstance(session, dict)
-            or session.get("token_type") != "Bearer"
             or not isinstance(session.get("access_token"), str)
             or not session["access_token"]
             or type(session.get("expires_in")) is not int
