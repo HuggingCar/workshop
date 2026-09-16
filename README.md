@@ -140,9 +140,11 @@ host libc. Builds are unsigned, as with the desktop application.
    printer port. Leave the speed at 9600 unless the printer uses another speed.
 5. Click **Zapisz** to save without printing. Click **Uruchom** to connect and print
    queued jobs. The window shows connection and error messages.
-   **Zatrzymaj** and closing the window wait for the current operation to finish.
-   Keep the window open while the agent is running. Do not run the desktop app
-   against the same printer.
+   Closing the window hides it in the system tray; the agent keeps processing jobs.
+   Use **Otwórz** in the tray menu to reopen it. **Zatrzymaj** stops processing;
+   **Zakończ**, in the window or tray menu, exits the app. Both wait for the current
+   operation to finish. If no system tray is available, closing keeps the window
+   visible; use **Zakończ** to exit. Do not run the desktop app against the same printer.
 
 Optional command-line mode remains available:
 
@@ -157,8 +159,9 @@ The API URL and permanent credential are saved in
 `$XDG_STATE_HOME/workshop-agent/fiscal.json` (default `~/.local/state/workshop-agent/`).
 Use `--data-dir` to choose another location. Unix credentials are saved with mode 0600;
 on Windows, keep the directory in your private user profile and restrict its ACL.
-Reopening the window restores the URL, masked token, port and speed. It does not
-start printing until you click **Uruchom**.
+Launching the app restores the URL, masked token, port and speed. It does not
+start printing until you click **Uruchom**. Reopening the window from the tray does
+not interrupt or restart the agent.
 
 The agent sends `Authorization: Agent <credential>` only to
 `POST /integrations/fiscal/agent/session/`, with the printer serial and telemetry headers.

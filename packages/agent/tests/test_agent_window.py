@@ -3,7 +3,6 @@ import threading
 import time
 
 import pytest
-
 from posnet.simulator import Simulator
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
@@ -12,10 +11,31 @@ from test_api import server, session
 from workshop_agent.app import AgentWindow
 
 
+def test_saved_setup_does_not_start_printing(tmp_path):
+    app = QApplication.instance() or QApplication([])
+    with Simulator() as sim, server([]) as (url, requests):
+        window = AgentWindow(tmp_path)
+        window.api_url.setText(url)
+        window.token.setText("secret")
+        window.port.setCurrentText(sim.connection.address)
+        QTest.mouseClick(window.save_button, Qt.MouseButton.LeftButton)
+        app.processEvents()
+        assert requests == []
+        assert sim.receipts == []
+        assert window.worker is None
+        window.quit()
+        window.deleteLater()
+        window = AgentWindow(tmp_path)
+        assert window.api_url.text() == url
+        assert window.token.text() == "secret"
+        assert window.token.echoMode() == QLineEdit.EchoMode.Password
+        assert window.port.currentText() == sim.connection.address
+        window.quit()
+        window.deleteLater()
+
+
 @pytest.mark.parametrize("tray_available", [True, False])
-def test_saved_setup_close_keeps_running_and_quit_finishes_receipt(
-    tmp_path, monkeypatch, tray_available
-):
+def test_close_keeps_running_and_quit_finishes_receipt(tmp_path, monkeypatch, tray_available):
     app = QApplication.instance() or QApplication([])
     monkeypatch.setattr(QSystemTrayIcon, "isSystemTrayAvailable", lambda: tray_available)
     printing = threading.Event()
@@ -43,16 +63,6 @@ def test_saved_setup_close_keeps_running_and_quit_finishes_receipt(
         window.api_url.setText(url)
         window.token.setText("secret")
         window.port.setCurrentText(sim.connection.address)
-        QTest.mouseClick(window.save_button, Qt.MouseButton.LeftButton)
-        assert requests == []  # saving configuration never starts printing
-        assert window.token.echoMode() == QLineEdit.EchoMode.Password
-        window.close()
-        window.deleteLater()
-        window = AgentWindow(tmp_path)
-        window.show()
-        assert window.api_url.text() == url
-        assert window.token.text() == "secret"
-        assert window.port.currentText() == sim.connection.address
         QTest.mouseClick(window.start_button, Qt.MouseButton.LeftButton)
         try:
             deadline = time.monotonic() + 5
@@ -61,7 +71,6 @@ def test_saved_setup_close_keeps_running_and_quit_finishes_receipt(
                 time.sleep(0.01)
             assert printing.is_set(), (window.status.text(), requests)
             window.close()
-            app.processEvents()
             assert window.isVisible() is not tray_available
             assert not window.worker.isInterruptionRequested()
             if tray_available:
@@ -81,7 +90,6 @@ def test_saved_setup_close_keeps_running_and_quit_finishes_receipt(
                 app.processEvents()
                 time.sleep(0.01)
         assert window.worker is None
-        window.close()
         assert not window.isVisible()
         assert len(sim.receipts) == 1
         assert requests[-1][2]["status"] == 3
