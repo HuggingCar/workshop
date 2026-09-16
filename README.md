@@ -61,9 +61,12 @@ uv run ruff check packages && uv run ruff format --check packages
 
 Python 3.14 or newer. `bash packages/desktop/build.sh` and `bash packages/agent/build.sh`
 produce bundles for the host OS and CPU in their respective `release/` directories.
-CI builds both on five runners and publishes them with checksums when the root version
-increases on `master`. A manual **Release** workflow run builds downloadable Actions
-artifacts without publishing a GitHub release.
+CI builds both on five runners only when a push to `master` increases the root
+`pyproject.toml` version above every published release. Other pushes do not rebuild
+packages. A manual **Release** run requires a version increase in the selected commit
+relative to its parent, and an unpublished version. It builds downloadable Actions
+artifacts without publishing a GitHub release. To retry a failed release, rerun its
+original workflow run.
 
 ## Fiscal safety
 
