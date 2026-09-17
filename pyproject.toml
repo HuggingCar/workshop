@@ -1,6 +1,6 @@
 [project]
 name = "workshop"
-version = "0.1.1"
+version = "0.1.2"
 description = "HuggingCar software for the workshop PC: Posnet driver, fiscal desktop app, local agent"
 requires-python = ">=3.14"
 license = "MIT"
@@ -51,6 +51,6 @@ allowed-confusables = ["–"]  # en dash belongs in Polish UI text
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**/*.py" = ["ARG005", "INP001", "PLC0415", "PLR2004", "PT011", "PT018", "S101", "SLF001"]
-"**/__main__.py" = ["PLC0415", "T201"]  # Qt is imported lazily so --probe runs headless
+"packages/desktop/fiscal_desktop/__main__.py" = ["PLC0415", "T201"]  # Qt imported lazily so --probe runs without a display
 # One flat dispatch chain mirroring the device command set; a test double, not product code.
 "packages/posnet/posnet/simulator.py" = ["C901", "PLR0911", "PLR0912"]

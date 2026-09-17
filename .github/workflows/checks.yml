@@ -68,7 +68,7 @@ jobs:
 
       - name: ShellCheck
         if: needs.changes.outputs.code == 'true'
-        run: shellcheck packages/desktop/build.sh
+        run: shellcheck packages/desktop/build.sh packages/agent/build.sh
 
   test:
     name: Test suite (${{ matrix.os }})

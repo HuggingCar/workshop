@@ -24,9 +24,22 @@ def test_invalid_unit_price_rejected(price):
 
 
 @pytest.mark.parametrize(
-    "name", ["", " \t", "x\tnaInjected", "x\n", "🔧", "x" * 81, "Olej\u00ad", "Olej\u00a05W30"]
+    ("name", "expected"),
+    [
+        ("Кузов", "Kuzov"),  # the printer cannot encode it: transliterated, not rejected
+        ("Wymiana 🔧 oleju", "Wymiana :wrench: oleju"),
+        ("x\tnaInjected", "x naInjected"),  # tabs separate protocol fields
+        ("Olej\u00ad", "Olej"),
+        ("Olej\u00a05W30", "Olej 5W30"),
+        ("x" * 100, "x" * 80),
+    ],
 )
-def test_unsafe_or_unprintable_name_rejected(name):
+def test_raw_name_is_sanitized_instead_of_rejected(name, expected):
+    assert Line(name, Decimal(1), Decimal(10), 0).name == expected
+
+
+@pytest.mark.parametrize("name", ["", " \t", "\u00ad"])
+def test_name_that_sanitizes_to_nothing_is_rejected(name):
     with pytest.raises(ValueError):
         Line(name, Decimal(1), Decimal(10), 0)
 

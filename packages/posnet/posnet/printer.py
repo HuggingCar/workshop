@@ -9,7 +9,7 @@ from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
-from .models import MAX_CENTS, VAT_COUNT, Line, VatRate, printable
+from .models import MAX_CENTS, VAT_COUNT, Line, VatRate, sanitize
 from .protocol import Connection, ProtocolError, Session
 
 if os.name == "nt":
@@ -314,9 +314,7 @@ class Printer:
             raise ValueError("Nieprawidłowe pozycje paragonu.")
         if payment not in (0, 2):
             raise ValueError("Wybierz płatność gotówką lub kartą.")
-        brand = brand.strip()[:40]
-        if brand:
-            printable(brand)
+        brand = sanitize(brand, 40)
         total = sum(line.total_cents for line in lines)
         if total > MAX_CENTS:
             raise ValueError("Suma paragonu przekracza zakres drukarki.")
