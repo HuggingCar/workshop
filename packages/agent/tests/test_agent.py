@@ -2,8 +2,6 @@
 
 import contextlib
 import json
-import os
-import signal
 import time
 from urllib.parse import unquote
 
@@ -11,7 +9,7 @@ import pytest
 from posnet.printer import Printer
 from posnet.protocol import ProtocolError
 from posnet.simulator import Simulator
-from workshop_agent.agent import DONE, FAILED, TAKEN, UNKNOWN, Agent, Api, main
+from workshop_agent.agent import DONE, FAILED, TAKEN, UNKNOWN, Agent, Api
 
 JOB = {
     "pk": 7,
@@ -169,22 +167,13 @@ def test_failure_mid_receipt_is_reported_unknown_and_blocks(tmp_path, monkeypatc
         assert sim.receipts == []
 
 
-@pytest.mark.skipif(os.name == "nt", reason="os.kill(SIGTERM) terminates the process on Windows")
-def test_malformed_server_replies_do_not_kill_the_loop_and_sigterm_stops_it(tmp_path, monkeypatch):
+def test_malformed_server_replies_do_not_kill_the_loop(tmp_path, monkeypatch):
     with Simulator() as sim:
-        # Stop the moment the queue is drained: what systemd would do at the end of a day.
         printer = Printer(sim.connection, tmp_path / "operation.json")
         api = FakeApi([{"payload": None}, {"pk": 8}, {**JOB, "pk": 9}])
-        monkeypatch.setattr(
-            time, "sleep", lambda _: api.jobs or os.kill(os.getpid(), signal.SIGTERM)
-        )
-        handlers = {sig: signal.getsignal(sig) for sig in (signal.SIGINT, signal.SIGTERM)}
         agent = Agent(printer, api)
-        try:
-            agent.run_forever()
-        finally:
-            for sig, handler in handlers.items():
-                signal.signal(sig, handler)
+        monkeypatch.setattr(time, "sleep", lambda _: setattr(agent, "stopping", not api.jobs))
+        agent.run_forever()
 
         assert (8, FAILED) in [r[:2] for r in api.reports]
         assert (9, DONE) in [r[:2] for r in api.reports]
@@ -240,21 +229,3 @@ def test_pending_journal_reports_unknown_and_blocks_until_manager_resolves(tmp_p
         assert agent._settle_last_operation() is False
         assert printer.pending() is None
         assert sim.receipts == []
-
-
-def test_credentials_are_remembered_owner_only_and_missing_ones_stop_the_agent(
-    tmp_path, monkeypatch
-):
-    config = tmp_path / "fiscal.json"
-    with Simulator() as sim:
-        printer = Printer(sim.connection, tmp_path / "operation.json")
-        assert main(printer, config, None, None) == 2
-        assert not config.exists()
-
-        monkeypatch.setattr(Agent, "run_forever", lambda _self: None)
-        assert main(printer, config, "https://server", "secret") == 0
-        assert json.loads(config.read_text()) == {"api_url": "https://server", "token": "secret"}
-        if os.name != "nt":  # Windows has no POSIX mode bits
-            assert config.stat().st_mode & 0o777 == 0o600
-        assert main(printer, config, None, None) == 0  # later runs need only --serial
-        assert main(printer, config, "ftp://server", "secret") == 2

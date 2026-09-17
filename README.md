@@ -7,7 +7,7 @@ One uv workspace, three packages:
 | --- | --- | --- |
 | `packages/posnet` | `posnet` | Driver for the Posnet protocol over USB/serial: framing and CRC, CP1250, status probe, receipts, reports, intent journal, plus a socket simulator for tests. Uses pySerial and anyascii. |
 | `packages/desktop` | `fiscal_desktop` | **HuggingCar Fiscal** — Polish desktop app (PySide6): receipt editor, daily/monthly/periodic reports, local history. Ships as `.exe`, `.dmg`, `.deb`. |
-| `packages/agent` | `workshop_agent` | Agent with a setup window sharing the desktop app's Ant Design-style theme, plus optional headless mode. Polls the manager API, prints receipts and reports their fiscal numbers. Standalone `.exe` and `.tar.gz` builds. |
+| `packages/agent` | `workshop_agent` | Agent with a setup window sharing the desktop app's Ant Design-style theme. Polls the manager API, prints receipts and reports their fiscal numbers. Standalone `.exe` and `.tar.gz` builds. |
 
 The desktop app and the agent import the same `posnet` source; a driver fix lands once.
 
@@ -54,7 +54,7 @@ uv run fiscal-desktop --serial /dev/ttyACM0 --probe
 curl -LsSf https://astral.sh/uv/install.sh | sh   # once, if uv is missing
 uv sync --locked                                   # every package, one .venv
 uv run fiscal-desktop                              # the desktop app
-uv run workshop-agent fiscal --serial /dev/ttyACM0 --api-url https://<manager-api> --token <TOKEN>
+uv run workshop-agent                             # the agent setup window
 QT_QPA_PLATFORM=offscreen uv run pytest -q         # all packages
 uv run ruff check packages && uv run ruff format --check packages
 ```
@@ -149,18 +149,9 @@ host libc. Builds are unsigned, as with the desktop application.
    operation to finish. If no system tray is available, closing keeps the window
    visible; use **Zakończ** to exit. Do not run the desktop app against the same printer.
 
-Optional command-line mode remains available:
-
-```bash
-./huggingcar-agent fiscal --serial /dev/ttyACM0 --api-url https://<manager-api> --token <TOKEN>
-```
-
-For command-line use, prefer `WORKSHOP_AGENT_TOKEN` over `--token` to keep the
-credential out of process arguments. Ctrl+C stops after the current operation.
-
 The API URL and permanent credential are saved in
 `$XDG_STATE_HOME/workshop-agent/fiscal.json` (default `~/.local/state/workshop-agent/`).
-Use `--data-dir` to choose another location. Unix credentials are saved with mode 0600;
+Unix credentials are saved with mode 0600;
 on Windows, keep the directory in your private user profile and restrict its ACL.
 Launching the app restores the URL, masked token, port and speed. It does not
 start printing until you click **Uruchom**. Reopening the window from the tray does

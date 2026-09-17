@@ -7,12 +7,10 @@ whose outcome is unknown is reported as such, never re-printed.
 
 import json
 import logging
-import signal
 import time
 from decimal import Decimal, InvalidOperation
 from http import HTTPStatus
 from ipaddress import ip_address
-from threading import current_thread, main_thread
 from typing import TYPE_CHECKING
 from urllib.error import HTTPError
 from urllib.parse import quote, urlsplit
@@ -156,11 +154,8 @@ class Agent:
         self.stopping = False
 
     def run_forever(self):
-        # A stop request waits for the job in progress: killing the process mid-receipt
+        # A stop request waits for the job in progress: interrupting a receipt
         # would leave a pending journal that only a human can resolve.
-        if current_thread() is main_thread():
-            for sig in (signal.SIGINT, signal.SIGTERM):
-                signal.signal(sig, lambda *_: setattr(self, "stopping", True))
         while not self.stopping:
             try:
                 self.step()
@@ -276,31 +271,3 @@ def save_config(path: Path, config: dict) -> None:
     path.touch(mode=0o600)
     path.chmod(0o600)
     path.write_text(json.dumps(config, indent=2))
-
-
-def main(printer: Printer, config_path: Path, api_url: str | None, token: str | None) -> int:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    config = load_config(config_path)
-    if api_url:
-        config["api_url"] = api_url
-    if token:
-        config["token"] = token
-    if not config.get("api_url") or not config.get("token"):
-        log.error("Podaj --api-url i --token (zapamiętywane po pierwszym uruchomieniu).")
-        return 2
-    try:
-        config["api_url"] = validated_url(config["api_url"])
-    except ValueError as exc:
-        log.error("%s", exc)  # noqa: TRY400 — invalid user configuration, no traceback needed
-        return 2
-    save_config(config_path, config)
-    while True:
-        try:
-            serial = printer.probe().unique_number
-            break
-        except (OSError, ValueError, ProtocolError) as exc:
-            log.warning("Drukarka niedostępna: %s — ponowna próba za %ss", exc, RETRY_SECONDS)
-            time.sleep(RETRY_SECONDS)
-    log.info("Drukarka %s, serwer %s", serial, config["api_url"])
-    Agent(printer, Api(config["api_url"], config["token"], serial)).run_forever()
-    return 0

@@ -1,4 +1,5 @@
 import json
+import os
 import threading
 import time
 
@@ -20,6 +21,8 @@ def test_saved_setup_does_not_start_printing(tmp_path):
         window.port.setCurrentText(sim.connection.address)
         QTest.mouseClick(window.save_button, Qt.MouseButton.LeftButton)
         app.processEvents()
+        if os.name != "nt":  # Windows has no POSIX mode bits
+            assert (tmp_path / "fiscal.json").stat().st_mode & 0o777 == 0o600
         assert requests == []
         assert sim.receipts == []
         assert window.worker is None

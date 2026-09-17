@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Standalone agent with a setup window and optional command-line mode.
+# Standalone agent with a setup window.
 set -euo pipefail
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 
@@ -25,19 +25,17 @@ mode=(--console --onefile)
 printf 'import sys\nfrom workshop_agent.__main__ import main\nsys.exit(main())\n' > build/launcher.py
 MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' \
 uv run --no-sync pyinstaller --noconfirm --clean "${mode[@]}" \
-  --name huggingcar-agent --specpath build --copy-metadata workshop-agent \
+  --name huggingcar-agent --specpath build \
   --collect-data anyascii --collect-data fiscal_desktop --collect-data workshop_agent build/launcher.py
 
 exe=dist/huggingcar-agent
 [[ $os == win ]] && exe+=.exe
 [[ $os == mac ]] && exe=dist/huggingcar-agent.app/Contents/MacOS/huggingcar-agent
-"$exe" --version
-"$exe" fiscal --help
 QT_QPA_PLATFORM=offscreen uv run --no-sync python -c "
-import subprocess, sys, tempfile
+import os, subprocess, sys, tempfile
 with tempfile.TemporaryDirectory() as state:
     try:
-        run = subprocess.run([sys.argv[1], '--data-dir', state], timeout=8)
+        run = subprocess.run([sys.argv[1]], env={**os.environ, 'XDG_STATE_HOME': state}, timeout=8)
     except subprocess.TimeoutExpired:
         sys.exit(0)  # the setup window is open and waiting for input
     sys.exit(f'agent window exited with {run.returncode} before setup was ready')" "$exe"
