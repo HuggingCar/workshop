@@ -19,8 +19,7 @@ stem="huggingcar-agent-${os}-${arch}"
 rm -rf build dist release
 mkdir -p build release
 uv sync --locked --package workshop-agent --group build --inexact
-mode=(--console --onefile)
-[[ $os == win ]] && mode=(--windowed --onefile)
+mode=(--windowed --onefile)
 [[ $os == mac ]] && mode=(--windowed --onedir)
 printf 'import sys\nfrom workshop_agent.__main__ import main\nsys.exit(main())\n' > build/launcher.py
 MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' \
