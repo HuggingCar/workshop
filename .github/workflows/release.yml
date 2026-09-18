@@ -5,7 +5,7 @@ on:
   push:
     branches: [master]
     paths:
-      - pyproject.toml
+      - Cargo.toml
 
 permissions:
   contents: read
@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   version:
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.v.outputs.tag }}
       new: ${{ steps.v.outputs.new }}
@@ -26,18 +26,26 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@1.94.0
       - id: v
         env:
           GH_TOKEN: ${{ github.token }}
           BASE: ${{ github.event.before || 'HEAD^' }}
         shell: bash
         run: |
-          # Compare the whole push; manual runs compare against the selected commit's parent.
-          tag="v$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          # Both applications inherit the release version from workspace.package.
+          version=$(cargo metadata --locked --no-deps --format-version 1 | jq -er '
+            [.packages[] | select(.name == "fiscal-desktop" or .name == "workshop-agent") | .version]
+            | if length == 2 and .[0] == .[1] then .[0] else error("application versions differ") end')
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Not a release version: $version" >&2; exit 1; }
+          tag="v$version"
           previous=""
-          if [[ ! "$BASE" =~ ^0+$ ]]; then
-            previous="v$(git show "$BASE:pyproject.toml" \
-              | python3 -c 'import sys, tomllib; print(tomllib.loads(sys.stdin.read())["project"]["version"])')"
+          # Compare the whole push; manual runs compare with the selected commit's parent.
+          # A missing root manifest is the first Rust release, not a version rollback.
+          if [[ ! "$BASE" =~ ^0+$ ]] && git cat-file -e "$BASE:Cargo.toml" 2>/dev/null; then
+            previous_version=$(git show "$BASE:Cargo.toml" | sed -n \
+              '/^\[workspace.package\]/,/^\[/s/^version *= *"\([^"]*\)".*/\1/p')
+            [[ -z "$previous_version" ]] || previous="v$previous_version"
           fi
           if [[ "$tag" == "$previous" || "$(printf '%s\n' "$previous" "$tag" | sort -V | tail -n1)" != "$tag" ]]; then
             printf 'tag=%s\nnew=false\n' "$tag" >> "$GITHUB_OUTPUT"
@@ -68,36 +76,44 @@ jobs:
           - { name: win-x64, os: windows-latest }
           - { name: mac-arm64, os: macos-latest }
           - { name: mac-x64, os: macos-26-intel }
-          - { name: linux-x64, os: ubuntu-latest }
+          # Pin the oldest supported glibc baseline, even after ubuntu-latest advances.
+          - { name: linux-x64, os: ubuntu-24.04 }
           - { name: linux-arm64, os: ubuntu-24.04-arm }
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@v10.1.0
+      - uses: dtolnay/rust-toolchain@1.94.0
+      - uses: Swatinem/rust-cache@v2
+      - name: Enable MSVC tools for standalone executable checks
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
         with:
-          enable-cache: true
-      - if: runner.os == 'Linux'
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq libegl1 libgl1 libfontconfig1 libxkbcommon0 libdbus-1-3 libglib2.0-0t64
-      - run: bash packages/desktop/build.sh
-        shell: bash
-      - if: runner.os == 'Linux'
-        name: Install the package and make sure the app comes up
+          arch: x64
+      - name: Install Linux build and smoke-test dependencies (no GTK)
+        if: runner.os == 'Linux'
         run: |
-          sudo apt-get install -y -qq ./packages/desktop/release/*.deb
-          # No printer on the runner: the app must reach its "not detected" state and stay alive.
-          QT_QPA_PLATFORM=offscreen timeout 10 huggingcar-fiscal && exit 1 || [ $? -eq 124 ]
-      - name: Build and smoke-test the standalone agent
-        run: bash packages/agent/build.sh
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq build-essential pkg-config libegl1-mesa-dev libgl1-mesa-dev \
+            libx11-dev libxi-dev libxrandr-dev libxcursor-dev libxkbcommon-dev libxkbcommon-x11-dev \
+            libwayland-dev libdbus-1-dev libgl1-mesa-dri xvfb xauth dbus-x11
+      - name: Build and smoke-test both Rust applications
+        run: bash scripts/build.sh
         shell: bash
+      - name: Install Linux packages and check startup
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get install -y -qq ./dist/*.deb
+          # No printer on the runner: both apps must show setup and stay alive.
+          dbus-run-session -- xvfb-run -a bash packaging/smoke.sh /usr/bin/huggingcar-fiscal
+          dbus-run-session -- xvfb-run -a bash packaging/smoke.sh /usr/bin/huggingcar-agent
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.name }}
-          path: |
-            packages/desktop/release/*
-            packages/agent/release/*
+          path: dist/*
           if-no-files-found: error
           retention-days: 7
 
@@ -112,7 +128,9 @@ jobs:
         with:
           path: release
           merge-multiple: true
-      - run: cd release && sha256sum * > SHA256SUMS.txt && sha256sum -c SHA256SUMS.txt
+      - name: Generate and verify checksums
+        working-directory: release
+        run: sha256sum * > SHA256SUMS.txt && sha256sum -c SHA256SUMS.txt
       - env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.version.outputs.tag }}

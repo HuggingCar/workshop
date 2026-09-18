@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=HuggingCar Agent
+Comment=Drukarka fiskalna dla warsztatu HuggingCar
+Exec=/usr/bin/huggingcar-agent
+Icon=huggingcar-agent
+Terminal=false
+Categories=Office;Finance;
+StartupNotify=true

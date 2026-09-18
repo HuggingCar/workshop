@@ -1,0 +1,36 @@
+[package]
+name = "fiscal-desktop"
+description = "HuggingCar Fiscal Polish desktop for Posnet Temo Online"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "huggingcar-fiscal"
+path = "src/main.rs"
+
+[features]
+sim = ["posnet/sim"]
+
+[dependencies]
+posnet.workspace = true
+chrono.workspace = true
+serde = { version = "1", features = ["derive"] }
+serde_json.workspace = true
+rust_decimal = { version = "1", default-features = false, features = ["std"] }
+egui_extras = { version = "0.33", features = ["svg"] }
+eframe = { version = "0.33", default-features = false, features = ["accesskit", "glow", "wayland", "x11", "default_fonts"] }
+tempfile = "3"
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.55"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+plist = "1"
+
+[dev-dependencies]
+fiscal-desktop = { path = ".", features = ["sim"] }
+
+[build-dependencies]
+winresource = "0.1"

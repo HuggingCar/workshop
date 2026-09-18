@@ -1,15 +1,15 @@
 # HuggingCar workshop
 
 Software that runs on the workshop PC, next to the Posnet Temo Online fiscal printer.
-One uv workspace, three packages:
+One Rust workspace, three crates:
 
-| Package | Import | What it is |
-| --- | --- | --- |
-| `packages/posnet` | `posnet` | Driver for the Posnet protocol over USB/serial: framing and CRC, CP1250, status probe, receipts, reports, intent journal, plus a socket simulator for tests. Uses pySerial and anyascii. |
-| `packages/desktop` | `fiscal_desktop` | **HuggingCar Fiscal** — Polish desktop app (PySide6): receipt editor, daily/monthly/periodic reports, local history. Ships as `.exe`, `.dmg`, `.deb`. |
-| `packages/agent` | `workshop_agent` | Agent with a setup window sharing the desktop app's Ant Design-style theme. Polls the manager API, prints receipts and reports their fiscal numbers. Standalone `.exe` and `.tar.gz` builds. |
+| Crate | What it is |
+| --- | --- |
+| `crates/posnet` | Posnet serial driver: framing, CRC, CP1250, receipts, reports, status and persistent intent journal. The optional `sim` feature provides a native TCP simulator for development. |
+| `crates/desktop` | **HuggingCar Fiscal** — Polish desktop app: receipt editor, reports, service catalog and local history. |
+| `crates/agent` | **HuggingCar Agent** — setup window and system tray, or headless API polling and fiscal job execution. |
 
-The desktop app and the agent import the same `posnet` source; a driver fix lands once.
+Both applications use the same driver. They ship as native binaries with no interpreter.
 
 ## Install HuggingCar Fiscal
 
@@ -45,28 +45,42 @@ are supported.
 Read-only check that issues no receipt:
 
 ```bash
-uv run fiscal-desktop --serial /dev/ttyACM0 --probe
+cargo run -p fiscal-desktop -- --serial /dev/ttyACM0 --probe
 ```
 
 ## Development
 
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh   # once, if uv is missing
-uv sync --locked                                   # every package, one .venv
-uv run fiscal-desktop                              # the desktop app
-uv run workshop-agent                             # the agent setup window
-QT_QPA_PLATFORM=offscreen uv run pytest -q         # all packages
-uv run ruff check packages && uv run ruff format --check packages
+cargo build --workspace --locked
+cargo run -p fiscal-desktop                       # desktop app
+cargo run -p workshop-agent                      # agent setup window
+cargo run -p workshop-agent -- --headless         # saved agent configuration
+cargo test --workspace --all-features --locked
+cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+cargo +nightly-2026-03-05 fmt --all --check
 ```
 
-Python 3.14 or newer. `bash packages/desktop/build.sh` and `bash packages/agent/build.sh`
-produce bundles for the host OS and CPU in their respective `release/` directories.
-CI builds both on five runners only when a push to `master` increases the root
-`pyproject.toml` version above every published release. Other pushes do not rebuild
-packages. A manual **Release** run requires a version increase in the selected commit
-relative to its parent, and an unpublished version. It builds downloadable Actions
-artifacts without publishing a GitHub release. To retry a failed release, rerun its
-original workflow run.
+The pinned toolchain is Rust **1.94.0**, edition **2024**, workspace resolver **3**.
+Nightly rustfmt (`rustup toolchain install nightly-2026-03-05 --component rustfmt`)
+is used only for the import grouping settings in `.rustfmt.toml`.
+For Linux release packages, use Ubuntu 24.04 and the build dependencies listed in
+`.github/workflows/release.yml`; this keeps the supported glibc baseline.
+
+`bash scripts/build.sh` builds release bundles for the host OS and CPU in `dist/`.
+CI builds both applications on five runners. A push to `master` publishes only when
+the workspace version in `Cargo.toml` increases above every published release.
+A manual **Release** run builds downloadable Actions artifacts without publishing.
+To retry a failed release, rerun its original workflow run.
+
+To exercise the desktop without a printer, run these in separate terminals:
+
+```bash
+cargo run -p posnet --features sim --bin posnet-simulator -- --port 29000
+cargo run -p fiscal-desktop --features sim -- --serial sim://127.0.0.1:29000 --data-dir /tmp/fiscal-demo
+```
+
+Keep simulator state separate from production data. Release packages omit the `sim`
+feature and reject simulator addresses.
 
 ## Fiscal safety
 
@@ -92,8 +106,7 @@ as a footer line.
 
 ## Desktop app
 
-Three tabs and a message line at the bottom; styling follows Ant Design v5 default tokens
-(`theme.qss`).
+Three tabs, printer status and recovery controls. The native interface uses egui.
 
 - **Sprzedaż** — the receipt editor (editable names, quantities to 8 decimals, gross
   prices to 2), a search box that filters the service list without dropping priced rows,
@@ -106,39 +119,46 @@ Three tabs and a message line at the bottom; styling follows Ant Design v5 defau
 - **Ustawienia** (gear) — the service list shown on Sprzedaż (add, rename by
   double-click, delete, drag to reorder) and, on the second tab, printer port and speed.
 
-Receipt text is sanitized by the driver, not the API: unsupported characters are
-transliterated, control characters removed, and names shortened to the device limit.
+Receipt text is validated by the driver before any fiscal command is sent.
 The desktop editor also checks names before printing.
 
-State: journal and history in `$XDG_STATE_HOME/huggingcar-fiscal/`
-(`~/.local/state/huggingcar-fiscal/`), settings in `~/.config/HuggingCar/Fiscal.conf`.
+Journal, history and `settings.json` share the application state directory:
+
+| OS | Default desktop state directory |
+| --- | --- |
+| Linux | `$XDG_STATE_HOME/huggingcar-fiscal` or `~/.local/state/huggingcar-fiscal` |
+| macOS | `~/Library/Preferences/State/huggingcar-fiscal` |
+| Windows | `%LOCALAPPDATA%/State/huggingcar-fiscal` |
+
+Existing Qt settings are imported on first start; existing journals and history stay
+in place. `--data-dir PATH` selects an explicit state directory for either application.
+Do not use a different directory to bypass an unresolved fiscal operation.
 
 ## Agent
 
-### Standalone agent (0.1.2)
+### Standalone agent
 
-No Python, uv, or desktop app is required. Download the matching agent asset from the
+Download the matching agent asset from the
 [release page](https://github.com/HuggingCar/workshop/releases/latest):
 
 | Platform | Asset |
 | --- | --- |
 | Windows x64 | `huggingcar-agent-win-x64.exe` |
-| macOS Apple Silicon | `huggingcar-agent-mac-arm64.tar.gz` |
-| macOS Intel | `huggingcar-agent-mac-x64.tar.gz` |
-| Linux x64 | `huggingcar-agent-linux-x64.tar.gz` |
-| Linux ARM64 | `huggingcar-agent-linux-arm64.tar.gz` |
+| macOS Apple Silicon | `huggingcar-agent-mac-arm64.dmg` |
+| macOS Intel | `huggingcar-agent-mac-x64.dmg` |
+| Linux x64 | `huggingcar-agent-linux-x64.deb` |
+| Linux ARM64 | `huggingcar-agent-linux-arm64.deb` |
 
-Agent assets appear after the 0.1.2 release is published. For an unpublished build,
-use the manual workflow's Actions artifacts or build locally with `bash packages/agent/build.sh`.
-Linux CI builds target Ubuntu 24.04 or newer; a local build requires a compatible
-host libc. Builds are unsigned, as with the desktop application.
+Linux and macOS also have `.tar.gz` archives. For an unpublished build, use the
+manual workflow's Actions artifacts or build locally with `bash scripts/build.sh`.
+Linux CI builds target Ubuntu 24.04 or newer. Builds are unsigned.
 
 1. Deploy the matching API first. Version 0.1.2 requires the new session endpoint;
    older agents that send a permanent token to job endpoints must be upgraded.
 2. In the web app (director): Ustawienia → Drukarki fiskalne → Dodaj drukarkę.
    Copy the credential; it is shown only once. Existing printer credentials also work.
-3. Extract the Unix archive. Double-click the Windows `.exe` or macOS `.app`;
-   on Linux launch `./huggingcar-agent` with no arguments.
+3. Install the Linux package, open the macOS disk image, or run the Windows `.exe`.
+   Archive users can launch the extracted application directly.
 4. Enter **Adres API**, paste the credential into **Token**, and select or type the
    printer port. Leave the speed at 9600 unless the printer uses another speed.
 5. Click **Zapisz** to save without printing. Click **Uruchom** to connect and print
@@ -150,7 +170,10 @@ host libc. Builds are unsigned, as with the desktop application.
    visible; use **Zakończ** to exit. Do not run the desktop app against the same printer.
 
 The API URL and permanent credential are saved in
-`$XDG_STATE_HOME/workshop-agent/fiscal.json` (default `~/.local/state/workshop-agent/`).
+`fiscal.json` in the agent state directory. On Linux this is
+`$XDG_STATE_HOME/workshop-agent` (default `~/.local/state/workshop-agent`).
+Other platforms use their local application-data directory. Existing legacy state
+directories are retained; conflicting old and new state locations fail closed.
 Unix credentials are saved with mode 0600;
 on Windows, keep the directory in your private user profile and restrict its ACL.
 Launching the app restores the URL, masked token, port and speed. It does not
@@ -175,12 +198,13 @@ including when the server has marked the job's outcome unknown.
 
 ## Tests
 
-Driver: the CRC vector from the Posnet documentation, CP1250 encoding, exact amounts,
-VAT-in-gross rounding, protocol error forms, port autodetection and the branding footer
-against the simulator. Desktop: value validation, the Qt editor, reports, lock release
-after a failed connection. Agent: real HTTP session exchange, renewal, revocation
-responses and redirect rejection; receipt jobs and crash recovery against the simulator.
-Real printouts still need an attached printer.
+Driver tests cover independent CRC vectors, CP1250 encoding, exact amounts,
+VAT rounding, protocol errors, autodetection, reports, branding and uncertain
+fiscal outcomes against the native simulator. Desktop tests cover receipt validation,
+settings and operation state. Agent tests cover HTTP sessions, authorization,
+receipt jobs and journal reconciliation. No test needs a physical printer.
+
+Real printouts still need an attached printer. Simulator success is not hardware certification.
 
 The protocol source is Posnet's POT-I-DEV-37 specification (v5406, 2022-06-13, Temo
 Online 2.01). No vendor SDK is used, and the specification is not redistributed here.

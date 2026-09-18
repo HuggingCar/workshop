@@ -21,7 +21,6 @@ jobs:
     timeout-minutes: 1
     outputs:
       code: ${{ github.event_name != 'pull_request' || steps.filter.outputs.code == 'true' }}
-
     steps:
       - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v4
@@ -30,84 +29,81 @@ jobs:
           filters: |
             code:
               - ".github/workflows/**"
-              - "packages/**"
-              - ".python-version"
-              - "pyproject.toml"
-              - "uv.lock"
+              - "crates/**"
+              - "packaging/**"
+              - "scripts/**"
+              - "Cargo.toml"
+              - "Cargo.lock"
+              - "rust-toolchain.toml"
+              - ".cargo/**"
+              - ".rustfmt.toml"
 
   static:
     name: Static analysis
     needs: changes
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-
+    timeout-minutes: 10
     steps:
       - name: Verify change detection
         if: needs.changes.result != 'success'
         run: exit 1
-
       - uses: actions/checkout@v7
         if: needs.changes.outputs.code == 'true'
         with:
           persist-credentials: false
-
-      - name: Ruff format
+      # imports_granularity and group_imports in .rustfmt.toml need nightly rustfmt.
+      - uses: dtolnay/rust-toolchain@nightly
         if: needs.changes.outputs.code == 'true'
-        uses: astral-sh/ruff-action@v4.1.0
         with:
-          src: packages
-          args: format --check --diff
-
-      - name: Ruff check
+          toolchain: nightly-2026-03-05
+          components: rustfmt
+      - name: Rust format
         if: needs.changes.outputs.code == 'true'
-        uses: astral-sh/ruff-action@v4.1.0
-        with:
-          src: packages
-          args: check
-
+        run: cargo +nightly-2026-03-05 fmt --all -- --check
       - name: ShellCheck
         if: needs.changes.outputs.code == 'true'
-        run: shellcheck packages/desktop/build.sh packages/agent/build.sh
+        run: shellcheck scripts/build.sh packaging/smoke.sh
 
   test:
-    name: Test suite (${{ matrix.os }})
+    name: Test suite (${{ matrix.name }})
     needs: changes
     if: ${{ !cancelled() }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        include:
+          - { name: linux-x64, os: ubuntu-24.04 }
+          - { name: linux-arm64, os: ubuntu-24.04-arm }
+          - { name: win-x64, os: windows-latest }
+          - { name: mac-arm64, os: macos-latest }
+          - { name: mac-x64, os: macos-26-intel }
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
-
+    timeout-minutes: 45
     steps:
       - name: Verify change detection
         if: needs.changes.result != 'success'
         run: exit 1
-
       - uses: actions/checkout@v7
         if: needs.changes.outputs.code == 'true'
         with:
           persist-credentials: false
-
-      - name: Install uv
+      - uses: dtolnay/rust-toolchain@1.94.0
         if: needs.changes.outputs.code == 'true'
-        uses: astral-sh/setup-uv@v10.1.0
         with:
-          quiet: true
-          enable-cache: true
-
-      - name: Install Qt runtime
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        if: needs.changes.outputs.code == 'true'
+      - name: Install Linux native dependencies (no GTK)
         if: needs.changes.outputs.code == 'true' && runner.os == 'Linux'
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq libegl1 libgl1 libfontconfig1 libxkbcommon0 libdbus-1-3 libglib2.0-0t64
-
-      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq build-essential pkg-config libegl1-mesa-dev libgl1-mesa-dev \
+            libx11-dev libxi-dev libxrandr-dev libxcursor-dev libxkbcommon-dev libxkbcommon-x11-dev \
+            libwayland-dev libdbus-1-dev
+      - name: Clippy
         if: needs.changes.outputs.code == 'true'
-        run: uv sync --locked
-
-      - name: Run tests
+        run: cargo clippy --locked --workspace --all-targets --features posnet/sim -- -D warnings
+      - name: Native simulator and application tests
         if: needs.changes.outputs.code == 'true'
-        run: uv run pytest
-        env:
-          QT_QPA_PLATFORM: offscreen
+        run: cargo test --locked --workspace --all-targets --features posnet/sim

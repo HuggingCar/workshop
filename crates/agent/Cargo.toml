@@ -1,0 +1,49 @@
+[package]
+name = "workshop-agent"
+description = "HuggingCar agent for the workshop PC: fiscal printing and other local duties"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "huggingcar-agent"
+path = "src/main.rs"
+
+[features]
+# Native simulator transport for conformance tests; not enabled in release builds.
+sim = ["posnet/sim"]
+
+[dependencies]
+posnet.workspace = true
+eframe = { version = "0.33", default-features = false, features = ["glow", "wayland", "x11", "default_fonts", "accesskit"] }
+percent-encoding = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json.workspace = true
+thiserror.workspace = true
+ureq = { version = "3", default-features = false, features = ["json", "rustls"] }
+url = "2"
+png = "0.18"
+egui = "0.33"
+rust_decimal = { version = "1", default-features = false, features = ["std"] }
+dirs = "7"
+tempfile = "3"
+ctrlc = { version = "3", features = ["termination"] }
+
+[dev-dependencies]
+workshop-agent = { path = ".", features = ["sim"] }
+parking_lot = "0.12"
+percent-encoding = "2"
+
+[target."cfg(target_os = \"linux\")".dependencies]
+ksni = { version = "0.3", default-features = false, features = ["blocking", "async-io"] }
+
+[target."cfg(not(target_os = \"linux\"))".dependencies]
+tray-icon = "0.25"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Console"] }
+
+
+[target.'cfg(windows)'.build-dependencies]
+winresource = "0.1"

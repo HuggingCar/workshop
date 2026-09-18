@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=HuggingCar Fiscal
+Comment=Paragony i raporty Posnet Temo Online
+Exec=/usr/bin/huggingcar-fiscal
+Icon=huggingcar-fiscal
+Terminal=false
+Categories=Office;Finance;
+StartupNotify=true
