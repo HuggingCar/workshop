@@ -34,7 +34,7 @@ Fill in <https://signpath.org/apply>. The form is a HubSpot embed; these are its
 | Privacy Policy URL | empty; the desktop app sends nothing anywhere |
 | Wikipedia URL | empty |
 | Tagline | `Desktop app and driver for Posnet Temo Online fiscal printers used in Polish car workshops` |
-| Description | `HuggingCar Fiscal is a Python/Qt desktop application that prints fiscal receipts and daily, monthly and periodic reports on Posnet Temo Online printers over USB. The repository also contains the pure-Python Posnet protocol driver and an agent with a setup window that prints receipts queued from the HuggingCar workshop management system. MIT licensed. Windows, macOS and Linux builds are produced by GitHub Actions from every tagged release; we are applying to sign the Windows executable.` |
+| Description | `HuggingCar Fiscal is a native Rust desktop application that prints fiscal receipts and daily, monthly and periodic reports on Posnet Temo Online printers over USB. The repository also contains the Rust Posnet protocol driver and an agent with a setup window that prints receipts queued from the HuggingCar workshop management system. MIT licensed. Windows, macOS and Linux builds are produced by GitHub Actions when the workspace version increases; we are applying to sign the Windows executables.` |
 | Reputation | `Published in September 2026 as the open-source part of HuggingCar, a car-workshop management platform (huggingcar.com) used in production by Polish workshops. Maintained by the HuggingCar team, who also run the backend the agent talks to. All commits go through pull requests with required CI; releases are built only by GitHub Actions.` Add real numbers (workshops, users) if available. |
 | Maintainer Type | company / organization, not individual |
 | First Name, Last Name, Email | the applicant; use an `@huggingcar.com` address, matching the organization domain helps |
@@ -56,12 +56,15 @@ Collect these values from the SignPath web UI:
    is the one that produces a trusted signature. For Foundation projects the request must
    be approved by a SignPath reviewer the first few times.
 4. **Artifact configuration** — describes what is inside the artifact. The Windows build
-   is a single `.exe` inside the ZIP that `actions/upload-artifact` produces:
+   contains both executables in the ZIP that `actions/upload-artifact` produces:
 
    ```xml
    <artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
      <zip-file>
        <pe-file path="huggingcar-fiscal-win-x64.exe">
+         <authenticode-sign />
+       </pe-file>
+       <pe-file path="huggingcar-agent-win-x64.exe">
          <authenticode-sign />
        </pe-file>
      </zip-file>
@@ -99,7 +102,7 @@ then the signed file replaces it.
         uses: actions/upload-artifact@v7
         with:
           name: win-x64-unsigned
-          path: packages/desktop/release/huggingcar-fiscal-win-x64.exe
+          path: dist/*.exe
           retention-days: 1
 
       - if: runner.os == 'Windows'
@@ -111,10 +114,10 @@ then the signed file replaces it.
           signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
           github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
           wait-for-completion: true
-          output-artifact-directory: packages/desktop/release
+          output-artifact-directory: dist
 ```
 
-The signed `.exe` lands in `packages/desktop/release/` under the same name, so the
+The signed executables land in `dist/` under the same names, so the
 existing upload and `publish` steps pick it up unchanged.
 
 Gate the two steps on the secret being present if pull-request builds from forks should

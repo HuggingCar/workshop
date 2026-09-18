@@ -1,6 +1,6 @@
 use std::{
     fs,
-    io::{self, Write},
+    io::Write,
     path::{Path, PathBuf},
 };
 
@@ -238,7 +238,7 @@ fn legacy_settings() -> Result<Option<Settings>, String> {
     };
     match fs::read_to_string(root.join("HuggingCar/Fiscal.conf")) {
         Ok(text) => Ok(Some(Settings::from_qt_ini(&text))),
-        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
         Err(e) => Err(format!("Nie można odczytać ustawień Qt: {e}")),
     }
 }
@@ -248,7 +248,7 @@ fn legacy_settings() -> Result<Option<Settings>, String> {
     use winreg::{RegKey, enums::HKEY_CURRENT_USER};
     let key = match RegKey::predef(HKEY_CURRENT_USER).open_subkey("Software\\HuggingCar\\Fiscal") {
         Ok(key) => key,
-        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(None),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(e) => return Err(e.to_string()),
     };
     let mut config = Settings::default();
